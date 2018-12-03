@@ -47,7 +47,7 @@ vivek
 vivek_tidy <- vivek %>%
   rowid_to_column('ID') %>%
   dplyr::select(text, favorite_count, retweet_count, ID) %>%
-     unnest_tokens(output = word, input = text) %>%
+   unnest_tokens(output = word, input = text) %>%
    # remove numbers
    filter(!str_detect(word, "^[0-9]*$")) %>%
    # remove stop words
@@ -76,8 +76,6 @@ removeSparseTerms(vivek_dtm, sparse = .99)
 (vivek_tfidf <- vivek_tidy %>%
   count(fav, word)  %>%
    bind_tf_idf(term = word, document = fav, n = n))
-
-
 ```
 
 ```{r}
@@ -111,8 +109,6 @@ vivek_nrc %>%
         # remove tick marks and text on y-axis
         axis.ticks.y = element_blank(),
         axis.text.y = element_blank())
-
-
 
 ```
 
@@ -255,7 +251,7 @@ vivek_nrc %>%
   # highest freq on top
   arrange(desc(n)) %>% 
   # identify rank within group
-  group_by(fav) %>% # 
+  group_by(fav, word) %>% # 
   mutate(top = seq_along(word)) %>%
   # retain top 15 frequent words
   filter(top <= 10) %>%
@@ -347,17 +343,19 @@ grande <- get_timeline(user = 'ArianaGrande',
 head(grande)
 ```
 
+Next I tidy the data and split each tweet by word
+
 ```{r}
 grande_tidy <- grande %>%
   rowid_to_column('ID') %>%
   dplyr::select(text, favorite_count, retweet_count, ID) %>%
-     unnest_tokens(output = word, input = text) %>%
+  unnest_tokens(output = word, input = text) %>%
    # remove numbers
-   filter(!str_detect(word, "^[0-9]*$")) %>%
+  filter(!str_detect(word, "^[0-9]*$")) %>%
    # remove stop words
-   anti_join(stop_words) %>%
+  anti_join(stop_words) %>%
    # stem the words
-   mutate(word = SnowballC::wordStem(word))
+  mutate(word = SnowballC::wordStem(word))
 
 grande_tidy$fav <- ifelse(grande_tidy$favorite_count >= 0 &  grande_tidy$favorite_count <= 10000, 'very low', 
                         ifelse(grande_tidy$favorite_count >10000 & grande_tidy$favorite_count <=100000, 'low',
@@ -442,4 +440,5 @@ vivek_nrc %>%
         axis.ticks.y = element_blank(),
         axis.text.y = element_blank())
 ```
+
 
