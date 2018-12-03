@@ -330,8 +330,116 @@ View(time)
 
 
 
-Ariana Grande is largely considered one of the most prolific artists **of all time**. Essential to being a popstar in 2018 is your social media presence. 
+Ariana Grande is largely considered one of the most prolific artists **of all time**. Essential to being a popstar in 2018 is your social media presence. Grande is quite active over Twitter and has gained a substantial following after the release of her hit song, 'Thank u Next'. Her tweets range from feuds with Piers Morgan, interacting with fans, and a budding friendship with Mark Hamil.
+
+[](skywalker.png)
+
+In this assignment, I will perform a sentiment analysis on Grande's tweets, as well as some classification to examine the temporal trends of her Twitter feed and her favorite counts by tweet. 
+
+### Dataset
+
+I use the `twitteR` package to retrieve the 4000 most recent tweets by Ariana Grande, not including retweets. I created a Twitter Development account and created and stored API keys and tokens for accessing the app in my .Rprofile page. 
+
+```{r}
+grande <- get_timeline(user = 'ArianaGrande',
+                      n = 4000,
+                      include_rts = FALSE)
+head(grande)
+```
+
+```{r}
+grande_tidy <- grande %>%
+  rowid_to_column('ID') %>%
+  dplyr::select(text, favorite_count, retweet_count, ID) %>%
+     unnest_tokens(output = word, input = text) %>%
+   # remove numbers
+   filter(!str_detect(word, "^[0-9]*$")) %>%
+   # remove stop words
+   anti_join(stop_words) %>%
+   # stem the words
+   mutate(word = SnowballC::wordStem(word))
+
+grande_tidy$fav <- ifelse(grande_tidy$favorite_count >= 0 &  grande_tidy$favorite_count <= 10000, 'very low', 
+                        ifelse(grande_tidy$favorite_count >10000 & grande_tidy$favorite_count <=100000, 'low',
+                         ifelse(grande_tidy$favorite_count >100000 & grande_tidy$favorite_count <=300000, 'medium', 
+                                ifelse(grande_tidy$favorite_count >300000 & grande_tidy$favorite_count <=600000, 'high',
+                                ifelse(grande_tidy$favorite_count >600000, 'very high', 'something else')))))
+
+grande_tidy
+```
 
 
 
+```{r}
+(vivek_nrc <- vivek_tidy %>%
+  inner_join(get_sentiments('afinn')) %>%
+  group_by(ID, fav, favorite_count) %>%
+  summarize(avg_score = sum(score)) %>%
+  mutate(weighted_score = favorite_count * avg_score))
+
+```
+
+```{r}
+vivek_tidy <- vivek %>%
+  rowid_to_column('ID') %>%
+  dplyr::select(text, favorite_count, retweet_count, ID, created_at) %>%
+     unnest_tokens(output = word, input = text) %>%
+   # remove numbers, created
+   filter(!str_detect(word, "^[0-9]*$")) %>%
+   # remove stop words
+   anti_join(stop_words) %>%
+   # stem the words
+   mutate(word = SnowballC::wordStem(word))
+
+vivek_tidy$fav <- ifelse(vivek_tidy$favorite_count >= 0 &  vivek_tidy$favorite_count <= 10000, 'very low', 
+                        ifelse(vivek_tidy$favorite_count >10000 & vivek_tidy$favorite_count <=100000, 'low',
+                         ifelse(vivek_tidy$favorite_count >100000 & vivek_tidy$favorite_count <=300000, 'medium', 
+                                ifelse(vivek_tidy$favorite_count >300000 & vivek_tidy$favorite_count <=600000, 'high',
+                                ifelse(vivek_tidy$favorite_count >600000, 'very high', 'something else')))))
+
+
+
+vivek_tidy$hour <- format(vivek_tidy$created_at, "%T")
+vivek_tidy$month <- format(vivek_tidy$created_at, "%m")
+
+vivek_tidy
+```
+
+
+```{r}
+vivek_nrc <- vivek_tidy %>%
+  inner_join(get_sentiments('nrc'))
+
+vivek_nrc
+```
+
+
+```{r}
+vivek_nrc %>%
+  # summarize count per word per book
+  count(month, word) %>%
+  # highest freq on top
+  arrange(desc(n)) %>% 
+  # identify rank within group
+  group_by(month) %>% # 
+  mutate(top = seq_along(word)) %>%
+  # retain top 15 frequent words
+  filter(top <= 10) %>%
+  # create barplot
+  ggplot(aes(x = -top, y = n, fill = month)) + 
+  geom_col(color = "black") +
+  # print words in plot instead of as axis labels
+  geom_text(aes(label = word), hjust = "left", nudge_y = 100) +
+  labs(title = "Most frequent words in Ariana Grande's Tweets",
+       x = NULL,
+       y = "Word count") +
+  facet_wrap( ~ month) +
+  coord_flip() +
+  theme(legend.position = "none",
+        # rotate x text
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        # remove tick marks and text on y-axis
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank())
+```
 
